@@ -1,4 +1,4 @@
-add_library(libkdb process.cpp)
+add_library(libkdb process.cpp pipe.cpp)
 add_library(kdb::libkdb ALIAS libkdb)
 
 set_target_properties(
