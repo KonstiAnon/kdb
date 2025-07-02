@@ -1,8 +1,11 @@
 //
 // Created by Konstantin on 01.07.2025.
 //
-#include <libkdb/register.hpp>
+#include <libkdb/registers.hpp>
 #include <libkdb/bit.hpp>
+#include <iostream>
+#include <libkdb/process.hpp>
+
 
 kdb::registers::value kdb::registers::read(const register_info &info) const {
     auto bytes = as_bytes(data_);
@@ -29,4 +32,8 @@ kdb::registers::value kdb::registers::read(const register_info &info) const {
     } else {
         return from_bytes<byte128>(bytes + info.offset);
     }
+}
+
+void kdb::registers::write(const kdb::register_info &info, kdb::registers::value val) {
+    auto bytes = as_bytes(data_);
 }
