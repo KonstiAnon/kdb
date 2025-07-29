@@ -6,7 +6,7 @@
 #define KDB_BIT_HPP
 
 #include <cstring>
-#incldue <libkdb/types.hpp>
+#include <libkdb/types.hpp>
 
 namespace kdb {
     template <class To>
