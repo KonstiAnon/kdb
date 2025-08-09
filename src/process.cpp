@@ -18,7 +18,7 @@ namespace {
 }
 
 std::unique_ptr<kdb::process>
-kdb::process::launch(std::filesystem::path path, bool debug) {
+kdb::process::launch(std::filesystem::path path, bool debug, std::optional<int> stdout_replacement) {
     pipe channel(true);
     pid_t pid;
     if ((pid = fork()) < 0) {
@@ -27,6 +27,13 @@ kdb::process::launch(std::filesystem::path path, bool debug) {
 
     if (pid == 0) {
         channel.close_read();
+
+        if (stdout_replacement) {
+            if (dup2(*stdout_replacement, STDOUT_FILENO) < 0) {
+                exit_with_perror(channel, "stdout replacement failed");
+            }
+        }
+
         if (debug and ptrace(PTRACE_TRACEME, 0, nullptr, nullptr) < 0) {
             exit_with_perror(channel, "Tracing failed");
         }
@@ -91,13 +98,13 @@ void kdb::process::resume() {
 }
 
 void kdb::process::read_all_registers() {
-    if (ptrace(PTRACE_GETREGS, pid_, nullptr, &get_registers().data_.regs) < 0){
+    if (ptrace(PTRACE_GETREGS, pid_, nullptr, &get_registers().data_.regs) < 0) {
         error::send_errno("Could not read GPR registers");
     }
-    if (ptrace(PTRACE_GETFPREGS, pid_, nullptr, &get_registers().data_.i387) < 0){
+    if (ptrace(PTRACE_GETFPREGS, pid_, nullptr, &get_registers().data_.i387) < 0) {
         error::send_errno("Could not read FPR registers");
     }
-    for (int i = 0; i < 8; ++i){
+    for (int i = 0; i < 8; ++i) {
         auto id = static_cast<int>(register_id::dr0) + i;
         auto info = register_info_by_id(static_cast<register_id>(id));
 
@@ -110,19 +117,19 @@ void kdb::process::read_all_registers() {
 }
 
 void kdb::process::write_user_area(std::size_t offset, std::uint64_t data) {
-    if (ptrace(PTRACE_POKEUSER, pid_, offset, data) < 0){
+    if (ptrace(PTRACE_POKEUSER, pid_, offset, data) < 0) {
         error::send_errno("Could not write to user area");
     }
 }
 
 void kdb::process::write_fprs(const user_fpregs_struct &fprs) {
-    if (ptrace(PTRACE_SETFPREGS, pid_, nullptr, &fprs) < 0){
+    if (ptrace(PTRACE_SETFPREGS, pid_, nullptr, &fprs) < 0) {
         error::send_errno("Could not write floating point registers");
     }
 }
 
 void kdb::process::write_gprs(const user_regs_struct &gprs) {
-    if (ptrace(PTRACE_SETREGS, pid_, nullptr, &gprs) < 0){
+    if (ptrace(PTRACE_SETREGS, pid_, nullptr, &gprs) < 0) {
         error::send_errno("Could not write general purpose registers");
     }
 }
@@ -149,7 +156,7 @@ kdb::stop_reason kdb::process::wait_on_signal() {
     stop_reason reason(wait_status);
     state_ = reason.reason;
 
-    if (is_attached_ and state_ == process_state::stopped){
+    if (is_attached_ and state_ == process_state::stopped) {
         read_all_registers();
     }
     return reason;

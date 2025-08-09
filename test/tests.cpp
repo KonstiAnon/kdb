@@ -7,6 +7,8 @@
 #include <libkdb/error.hpp>
 #include <csignal>
 #include <fstream>
+#include "libkdb/pipe.hpp"
+#include "libkdb/bit.hpp"
 
 namespace {
     char get_process_status(pid_t pid) {
@@ -70,4 +72,23 @@ TEST_CASE("process::resume already terminated", "[process]") {
     proc->resume();
     proc->wait_on_signal();
     REQUIRE_THROWS_AS(proc->resume(), error);
+}
+
+TEST_CASE("Write register works" "[register]") {
+    bool close_on_exec = false;
+    kdb::pipe channel(close_on_exec);
+
+    auto proc = process::launch("targets/reg_write", true, channel.get_write());
+    channel.close_write();
+
+    proc->resume();
+    proc->wait_on_signal();
+
+    auto& regs = proc->get_registers();
+    regs.write_by_id(register_id::rsi, 0xcafecafe);
+    proc->resume();
+    proc->wait_on_signal();
+
+    auto output = channel.read();
+    REQUIRE(to_string_view(output) == "0xcafecafe");
 }
